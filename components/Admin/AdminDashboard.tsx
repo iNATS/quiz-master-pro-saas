@@ -3,7 +3,6 @@ import React, { useState, useEffect } from 'react';
 import QuizList from './QuizList';
 import QuizBuilder from './QuizBuilder';
 import TeacherSettings from '../Teacher/TeacherSettings';
-import BillingSection from '../Teacher/BillingSection';
 import ReportsView from './ReportsView';
 import GradingView from './GradingView';
 import { Quiz, Teacher } from '../../types';
@@ -14,12 +13,13 @@ interface AdminDashboardProps {
   onLogout: () => void;
 }
 
-type View = 'list' | 'create' | 'edit' | 'settings' | 'billing' | 'reports' | 'grading';
+type View = 'list' | 'create' | 'edit' | 'settings' | 'reports' | 'grading';
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const [view, setView] = useState<View>('list');
   const [editingQuiz, setEditingQuiz] = useState<Quiz | null>(null);
   const [teacher, setTeacher] = useState<Teacher | null>(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const teacherId = localStorage.getItem('teacher_id');
 
   useEffect(() => {
@@ -41,11 +41,18 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const handleEdit = (quiz: Quiz) => {
     setEditingQuiz(quiz);
     setView('edit');
+    setIsSidebarOpen(false);
   };
 
   const handleFinishBuilder = () => {
     setEditingQuiz(null);
     setView('list');
+    setIsSidebarOpen(false);
+  };
+
+  const navigate = (newView: View) => {
+    setView(newView);
+    setIsSidebarOpen(false);
   };
 
   if (!teacher) return <div className="min-h-screen flex items-center justify-center bg-slate-50">Authenticating Workspace...</div>;
@@ -55,8 +62,32 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-slate-50" dir={isRTL ? 'rtl' : 'ltr'}>
+      {/* Mobile Header */}
+      <div className="md:hidden bg-slate-900 text-white p-4 flex justify-between items-center sticky top-0 z-40 shadow-lg">
+        <div className="flex items-center gap-2">
+           {teacher.settings.logoUrl ? (
+             <img src={teacher.settings.logoUrl} className="w-8 h-8 object-contain bg-white rounded p-0.5" alt="logo" />
+           ) : (
+             <i className="fas fa-graduation-cap text-brand-400"></i>
+           )}
+           <span className="font-black text-sm uppercase truncate max-w-[150px]">{teacher.settings.schoolName}</span>
+        </div>
+        <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 text-2xl focus:outline-none">
+          <i className={`fas ${isSidebarOpen ? 'fa-times' : 'fa-bars'}`}></i>
+        </button>
+      </div>
+
+      {/* Sidebar Overlay */}
+      {isSidebarOpen && (
+        <div className="md:hidden fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-40" onClick={() => setIsSidebarOpen(false)}></div>
+      )}
+
       {/* Sidebar */}
-      <aside className="w-full md:w-72 bg-slate-900 text-white p-8 flex flex-col shadow-2xl z-30 relative overflow-hidden">
+      <aside className={`
+        fixed inset-y-0 ${isRTL ? 'right-0' : 'left-0'} z-50 w-72 bg-slate-900 text-white p-8 flex flex-col shadow-2xl transition-transform duration-300 transform 
+        ${isSidebarOpen ? 'translate-x-0' : (isRTL ? 'translate-x-full' : '-translate-x-full')} 
+        md:relative md:translate-x-0
+      `}>
         <div className="absolute top-0 left-0 w-full h-1 bg-brand-500"></div>
         <div className="flex items-center gap-4 mb-12">
           {teacher.settings.logoUrl ? (
@@ -67,30 +98,27 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
             </div>
           )}
           <div>
-            <h1 className="text-xl font-black tracking-tighter leading-none">{teacher.settings.schoolName}</h1>
+            <h1 className="text-xl font-black tracking-tighter leading-none truncate max-w-[120px]">{teacher.settings.schoolName}</h1>
             <span className="inline-block mt-1 px-2 py-0.5 bg-brand-900/50 text-brand-400 text-[9px] font-black uppercase tracking-widest rounded">{teacher.plan} tier</span>
           </div>
         </div>
         
         <nav className="space-y-1.5 flex-1">
-          <button onClick={() => setView('list')} className={`w-full flex items-center gap-3 px-5 py-4 rounded-2xl transition-all ${view === 'list' ? 'bg-slate-800 text-white font-bold border-brand-500 shadow-xl ' + (isRTL ? 'border-r-4' : 'border-l-4') : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}>
+          <button onClick={() => navigate('list')} className={`w-full flex items-center gap-3 px-5 py-4 rounded-2xl transition-all ${view === 'list' ? 'bg-slate-800 text-white font-bold border-brand-500 shadow-xl ' + (isRTL ? 'border-r-4' : 'border-l-4') : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}>
             <i className="fas fa-th-large w-5"></i><span>{t.dashboard}</span>
           </button>
-          <button onClick={() => { setEditingQuiz(null); setView('create'); }} className={`w-full flex items-center gap-3 px-5 py-4 rounded-2xl transition-all ${view === 'create' ? 'bg-slate-800 text-white font-bold border-brand-500 shadow-xl ' + (isRTL ? 'border-r-4' : 'border-l-4') : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}>
+          <button onClick={() => { setEditingQuiz(null); navigate('create'); }} className={`w-full flex items-center gap-3 px-5 py-4 rounded-2xl transition-all ${view === 'create' ? 'bg-slate-800 text-white font-bold border-brand-500 shadow-xl ' + (isRTL ? 'border-r-4' : 'border-l-4') : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}>
             <i className="fas fa-plus-circle w-5"></i><span>{t.newAssessment}</span>
           </button>
-          <button onClick={() => setView('grading')} className={`w-full flex items-center gap-3 px-5 py-4 rounded-2xl transition-all ${view === 'grading' ? 'bg-slate-800 text-white font-bold border-brand-500 shadow-xl ' + (isRTL ? 'border-r-4' : 'border-l-4') : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}>
+          <button onClick={() => navigate('grading')} className={`w-full flex items-center gap-3 px-5 py-4 rounded-2xl transition-all ${view === 'grading' ? 'bg-slate-800 text-white font-bold border-brand-500 shadow-xl ' + (isRTL ? 'border-r-4' : 'border-l-4') : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}>
             <i className="fas fa-pen-nib w-5"></i><span>{t.gradeNow}</span>
           </button>
-          <button onClick={() => setView('reports')} className={`w-full flex items-center gap-3 px-5 py-4 rounded-2xl transition-all ${view === 'reports' ? 'bg-slate-800 text-white font-bold border-brand-500 shadow-xl ' + (isRTL ? 'border-r-4' : 'border-l-4') : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}>
+          <button onClick={() => navigate('reports')} className={`w-full flex items-center gap-3 px-5 py-4 rounded-2xl transition-all ${view === 'reports' ? 'bg-slate-800 text-white font-bold border-brand-500 shadow-xl ' + (isRTL ? 'border-r-4' : 'border-l-4') : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}>
             <i className="fas fa-chart-bar w-5"></i><span>{t.globalReports}</span>
           </button>
           <div className="py-6"><div className="h-px bg-slate-800"></div></div>
-          <button onClick={() => setView('settings')} className={`w-full flex items-center gap-3 px-5 py-4 rounded-2xl transition-all ${view === 'settings' ? 'bg-slate-800 text-white font-bold border-brand-500 shadow-xl ' + (isRTL ? 'border-r-4' : 'border-l-4') : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}>
+          <button onClick={() => navigate('settings')} className={`w-full flex items-center gap-3 px-5 py-4 rounded-2xl transition-all ${view === 'settings' ? 'bg-slate-800 text-white font-bold border-brand-500 shadow-xl ' + (isRTL ? 'border-r-4' : 'border-l-4') : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}>
             <i className="fas fa-paint-brush w-5"></i><span>{t.branding}</span>
-          </button>
-          <button onClick={() => setView('billing')} className={`w-full flex items-center gap-3 px-5 py-4 rounded-2xl transition-all ${view === 'billing' ? 'bg-slate-800 text-white font-bold border-brand-500 shadow-xl ' + (isRTL ? 'border-r-4' : 'border-l-4') : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}>
-            <i className="fas fa-credit-card w-5"></i><span>{t.subscription}</span>
           </button>
         </nav>
 
@@ -115,7 +143,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
           {view === 'grading' && <GradingView teacherId={teacherId!} onBack={() => setView('list')} />}
           {view === 'reports' && <ReportsView teacherId={teacherId!} />}
           {view === 'settings' && <TeacherSettings teacher={teacher} onUpdate={loadTeacher} />}
-          {view === 'billing' && <BillingSection teacher={teacher} onUpdate={loadTeacher} />}
         </div>
       </main>
     </div>

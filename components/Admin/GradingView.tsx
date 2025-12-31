@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { DB } from '../../services/db';
 import { Submission, Quiz, Question } from '../../types';
@@ -43,7 +42,8 @@ const GradingView: React.FC<GradingViewProps> = ({ teacherId, onBack }) => {
     // Calculate total score adding choice scores + manual scores
     const quiz = quizzes[selectedSubmission.quizId];
     let manualTotal = 0;
-    Object.values(tempScores).forEach(s => manualTotal += s);
+    // Fix: Explicitly type s as number to resolve the 'unknown' error in certain TS environments
+    Object.values(tempScores).forEach((s: number) => manualTotal += s);
     
     // Auto choice points were already in selectedSubmission.score
     const finalScore = selectedSubmission.score + manualTotal;

@@ -4,6 +4,7 @@ import { DB } from '../../services/db';
 import { Quiz, Submission, Teacher, Question } from '../../types';
 import { getQRCodeUrl } from '../../utils/qr';
 import { translations, Language } from '../../translations';
+import { getAlgeriaNow, formatToAlgeriaTime } from '../../utils/time';
 
 interface QuizTakingProps {
   quizId: string;
@@ -17,7 +18,6 @@ const QuizTaking: React.FC<QuizTakingProps> = ({ quizId }) => {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
-  const [email, setEmail] = useState('');
   
   const [started, setStarted] = useState(false);
   const [currentAnswers, setCurrentAnswers] = useState<Record<string, number | string>>({});
@@ -54,7 +54,7 @@ const QuizTaking: React.FC<QuizTakingProps> = ({ quizId }) => {
   }, [quiz]);
 
   const checkStatus = (q: Quiz) => {
-    const now = new Date();
+    const now = getAlgeriaNow();
     const start = new Date(q.startTime);
     const end = new Date(q.endTime);
     if (now < start) setTimeState({ status: 'not-started', timeLeft: Math.floor((start.getTime() - now.getTime()) / 1000) });
@@ -63,7 +63,7 @@ const QuizTaking: React.FC<QuizTakingProps> = ({ quizId }) => {
   };
 
   const handleStart = () => { 
-    if (!firstName || !lastName || !phone || !email) {
+    if (!firstName || !lastName || !phone) {
       alert("All fields are required.");
       return;
     }
@@ -91,12 +91,11 @@ const QuizTaking: React.FC<QuizTakingProps> = ({ quizId }) => {
       quizId: quiz.id,
       teacherId: quiz.teacherId,
       studentName: `${firstName} ${lastName}`,
-      studentEmail: email,
       firstName,
       lastName,
       phone,
       answers: answersArray,
-      score: autoScore, // Initial score from choice questions only
+      score: autoScore,
       totalPoints,
       status: requiresManual ? 'pending' : 'graded',
       submittedAt: new Date().toISOString()
@@ -121,7 +120,6 @@ const QuizTaking: React.FC<QuizTakingProps> = ({ quizId }) => {
   const brandColor = teacher?.settings.brandColor || '#2563eb';
   const verificationUrl = `${window.location.origin}${window.location.pathname}#/verify/${submissionId}`;
 
-  // State: Quiz Not Started Yet
   if (timeState.status === 'not-started') {
     return (
       <div className="min-h-screen bg-slate-100 flex items-center justify-center p-6" dir={isRTL ? 'rtl' : 'ltr'}>
@@ -140,14 +138,14 @@ const QuizTaking: React.FC<QuizTakingProps> = ({ quizId }) => {
            </div>
            
            <div className="mt-12 pt-8 border-t border-slate-100">
-              <p className="text-xs font-bold text-slate-400">{t.starts}: {new Date(quiz.startTime).toLocaleString()}</p>
+              <p className="text-xs font-bold text-slate-400">{t.starts}: {formatToAlgeriaTime(quiz.startTime, lang)}</p>
+              <p className="text-[9px] text-slate-400 font-black mt-1 uppercase">{t.timezoneNote}</p>
            </div>
         </div>
       </div>
     );
   }
 
-  // State: Quiz Ended
   if (timeState.status === 'ended' && !started) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6" dir={isRTL ? 'rtl' : 'ltr'}>
@@ -193,14 +191,13 @@ const QuizTaking: React.FC<QuizTakingProps> = ({ quizId }) => {
            ) : (
               <div className="flex gap-4">
                  <button onClick={() => window.print()} className="px-10 py-4 bg-slate-900 text-white rounded-2xl font-black shadow-2xl hover:bg-slate-800 transition-all flex items-center gap-2">
-                   <i className="fas fa-crown text-yellow-500"></i> Download Luxury Diploma
+                   <i className="fas fa-crown text-yellow-500"></i> {lang === 'ar' ? 'تحميل الشهادة' : 'Download Diploma'}
                  </button>
                  <button onClick={() => window.location.hash = '#/'} className="px-10 py-4 bg-white border-2 border-slate-300 rounded-2xl font-bold hover:bg-slate-50">{t.back}</button>
               </div>
            )}
         </div>
 
-        {/* Certificate Section Only for non-pending or just as preview */}
         <div id="cert-container" className="bg-white w-[297mm] h-[210mm] shadow-[0_40px_100px_rgba(0,0,0,0.4)] relative flex flex-col items-center shrink-0 select-none overflow-hidden p-2">
           <div className="absolute inset-4 border-[1px] border-[#D4AF37] opacity-60"></div>
           <div className="absolute inset-8 border-[6px] border-double border-[#D4AF37]"></div>
@@ -243,7 +240,7 @@ const QuizTaking: React.FC<QuizTakingProps> = ({ quizId }) => {
                </div>
                <div className="text-center w-64 border-t border-[#D4AF37] pt-4">
                   <p className="font-['Cinzel'] font-bold text-slate-800 text-sm mb-1">{new Date().toLocaleDateString()}</p>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Date of Conferral</p>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t.dateOfConferral}</p>
                </div>
             </div>
           </div>
@@ -264,19 +261,15 @@ const QuizTaking: React.FC<QuizTakingProps> = ({ quizId }) => {
           <div className="p-12 grid grid-cols-1 md:grid-cols-2 gap-6">
              <div className="md:col-span-1">
                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">{t.firstName}</label>
-                <input type="text" value={firstName} onChange={e => setFirstName(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold" placeholder="Ali" />
+                <input type="text" value={firstName} onChange={e => setFirstName(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold" placeholder={lang === 'ar' ? 'الاسم' : 'First Name'} />
              </div>
              <div className="md:col-span-1">
                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">{t.lastName}</label>
-                <input type="text" value={lastName} onChange={e => setLastName(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold" placeholder="Hassan" />
+                <input type="text" value={lastName} onChange={e => setLastName(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold" placeholder={lang === 'ar' ? 'اللقب' : 'Last Name'} />
              </div>
              <div className="md:col-span-2">
                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">{t.phone}</label>
                 <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold" placeholder={t.phonePlaceholder} />
-             </div>
-             <div className="md:col-span-2">
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Email</label>
-                <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold" placeholder="ali@student.com" />
              </div>
              <button onClick={handleStart} className="md:col-span-2 py-5 bg-brand-600 text-white rounded-[2rem] font-black text-xl hover:bg-brand-500 shadow-xl transition-all">
                 {t.startQuiz}
@@ -322,7 +315,7 @@ const QuizTaking: React.FC<QuizTakingProps> = ({ quizId }) => {
                     <button 
                       key={oIdx} 
                       onClick={() => setCurrentAnswers({...currentAnswers, [q.id]: oIdx})} 
-                      className={`p-6 rounded-3xl border-2 text-right font-bold text-lg transition-all flex items-center gap-4 ${currentAnswers[q.id] === oIdx ? 'border-brand-500 bg-brand-50' : 'border-slate-50 bg-slate-50/50'}`} 
+                      className={`p-6 rounded-3xl border-2 ${isRTL ? 'text-right' : 'text-left'} font-bold text-lg transition-all flex items-center gap-4 ${currentAnswers[q.id] === oIdx ? 'border-brand-500 bg-brand-50' : 'border-slate-50 bg-slate-50/50'}`} 
                     >
                       <div className={`w-6 h-6 rounded-full border-4 flex-shrink-0 ${currentAnswers[q.id] === oIdx ? 'bg-white' : 'bg-transparent'}`} style={{ borderColor: currentAnswers[q.id] === oIdx ? brandColor : '#cbd5e1' }}></div>
                       {opt}
@@ -334,7 +327,7 @@ const QuizTaking: React.FC<QuizTakingProps> = ({ quizId }) => {
                    rows={4}
                    value={currentAnswers[q.id] as string || ''}
                    onChange={(e) => setCurrentAnswers({...currentAnswers, [q.id]: e.target.value})}
-                   placeholder="Type your answer here..."
+                   placeholder={lang === 'ar' ? 'اكتب إجابتك هنا...' : 'Type your answer here...'}
                    className="w-full p-6 bg-slate-50 border-2 border-slate-100 rounded-3xl outline-none focus:border-brand-500 font-bold transition-all"
                 />
              )}

@@ -1,8 +1,7 @@
 
 export const generateSeedSQL = () => {
-  return `-- QuizMaster Pro - Enterprise Migration Script
--- Purpose: Support manual grading, student identity login, and question reordering.
--- This script is idempotent and preserves all existing quiz and student data.
+  return `-- QuizMaster Pro - Algerian Educational Infrastructure Migration
+-- Purpose: Optimize for student first/last name/phone login, handle timezones, and support manual grading.
 
 -- 1. ENHANCE QUIZZES TABLE
 ALTER TABLE quizzes ADD COLUMN IF NOT EXISTS "requiresManualGrading" BOOLEAN DEFAULT FALSE;
@@ -19,11 +18,11 @@ WHERE EXISTS (
 ALTER TABLE submissions ADD COLUMN IF NOT EXISTS "firstName" TEXT;
 ALTER TABLE submissions ADD COLUMN IF NOT EXISTS "lastName" TEXT;
 ALTER TABLE submissions ADD COLUMN IF NOT EXISTS "phone" TEXT;
-ALTER TABLE submissions ADD COLUMN IF NOT EXISTS "studentEmail" TEXT;
+ALTER TABLE submissions ADD COLUMN IF NOT EXISTS "studentEmail" TEXT; -- Make optional in application
 ALTER TABLE submissions ADD COLUMN IF NOT EXISTS "status" TEXT DEFAULT 'graded'; -- 'pending' or 'graded'
 ALTER TABLE submissions ADD COLUMN IF NOT EXISTS "manualScores" JSONB DEFAULT '{}'::jsonb;
 
--- Data Migration: Split studentName into firstName/lastName for existing records
+-- Data Migration: Split studentName into firstName/lastName for existing records if null
 UPDATE submissions 
 SET 
   "firstName" = split_part("studentName", ' ', 1),
@@ -34,7 +33,7 @@ SET
                END
 WHERE "firstName" IS NULL;
 
--- Default status to 'graded' for legacy records to prevent them appearing in grading queue
+-- Default status to 'graded' for legacy records
 UPDATE submissions SET "status" = 'graded' WHERE "status" IS NULL;
 
 -- 3. APP TRANSLATIONS STORAGE
@@ -45,7 +44,7 @@ CREATE TABLE IF NOT EXISTS app_translations (
   "updatedAt" TIMESTAMPTZ DEFAULT now()
 );
 
--- Seed/Update translations
+-- Seed/Update translations with new Algerian-specific strings
 INSERT INTO app_translations (language, bundle)
 VALUES 
 ('en', '{
@@ -56,17 +55,19 @@ VALUES
   "manualGrading": "Needs Manual Grading",
   "gradeNow": "Grade Submissions",
   "quizNotStarted": "Assessment Not Started",
-  "quizEnded": "Assessment Ended"
+  "quizEnded": "Assessment Ended",
+  "upcomingQuizzes": "Upcoming Assessments"
 }'),
 ('ar', '{
   "studentPortal": "بوابة الطالب",
   "firstName": "الاسم الأول",
-  "lastName": "اسم العائلة",
+  "lastName": "اللقب",
   "phone": "رقم الهاتف",
   "manualGrading": "يحتاج تصحيح يدوي",
   "gradeNow": "تصحيح الإجابات",
   "quizNotStarted": "الاختبار لم يبدأ بعد",
-  "quizEnded": "انتهى وقت الاختبار"
+  "quizEnded": "انتهى وقت الاختبار",
+  "upcomingQuizzes": "الاختبارات القادمة"
 }')
 ON CONFLICT (language) DO UPDATE SET bundle = EXCLUDED.bundle;
 
@@ -75,6 +76,7 @@ ON CONFLICT (language) DO UPDATE SET bundle = EXCLUDED.bundle;
 CREATE INDEX IF NOT EXISTS idx_submissions_identity_lookup ON submissions("firstName", "lastName", "phone");
 CREATE INDEX IF NOT EXISTS idx_submissions_quiz_status ON submissions("quizId", "status");
 CREATE INDEX IF NOT EXISTS idx_quizzes_teacher ON quizzes("teacherId");
+CREATE INDEX IF NOT EXISTS idx_submissions_time ON submissions("submittedAt");
 
 -- 5. SECURITY POLICIES (Supabase RLS)
 ALTER TABLE app_translations ENABLE ROW LEVEL SECURITY;
